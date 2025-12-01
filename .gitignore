@@ -1,0 +1,28 @@
+# --- Node.js ---
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+
+# --- Python / Jupyter ---
+venv/
+env/
+.env
+
+# Cache und Bytecode
+__pycache__/
+*.pyc
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# --- IDE / OS Settings ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Projectdata ---
+
+data/*
