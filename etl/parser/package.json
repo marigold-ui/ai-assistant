@@ -1,0 +1,30 @@
+{
+  "name": "etl-node",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "fetch": "tsx src/fetch_docs.ts",
+    "parse": "tsx src/generate_ast.ts",
+    "build": "tsc",
+    "dev": "pnpm fetch && pnpm parse"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/unist": "^3.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "glob": "^13.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0"
+  }
+}

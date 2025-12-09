@@ -1,0 +1,83 @@
+sequenceDiagram
+    autonumber
+    
+    %% --- Layer Definitionen ---
+    box "Frontend / Benutzer-Ebene" #e3f2fd
+        participant Dev as Entwickler
+        participant IDE as IDE (MCP-Host)
+    end
+    box "KI / Inferenz-Ebene" #f3e5f5
+        participant LLM as LLM (Chat-Modell)
+        participant Ollama as Ollama (Embedder)
+    end
+    box "Backend / Infrastruktur" #e8f5e9
+        participant MCP as MCP-Server
+        participant DB as Vektor-DB (Postgres)
+    end
+    box "Build-Time / Datenaufbereitung" #fff3e0
+        participant ETL as ETL-Pipeline
+        participant LocalRepo as Lokales Dateisystem
+        participant RemoteRepo as Marigold UI Repo (Remote)
+    end
+
+    %% ==========================================
+    %% PHASE 1: INGESTION (ETL)
+    %% ==========================================
+    rect rgb(255, 248, 225)
+        note right of ETL: Phase 1: Aufbau der Wissensbasis (Batch-Processing)
+        
+        ETL->>RemoteRepo: Holen der Marigold Dokumentation
+        RemoteRepo-->>LocalRepo: Dateien synchronisieren (.mdx, .tsx)
+        note right of LocalRepo: Lokaler Spiegel der aktuellen<br/>Dokumentation erstellt
+        
+        ETL->>LocalRepo: Lese alle relevanten Dateien ein
+        LocalRepo-->>ETL: Rückgabe aller Dateiinhalte
+        
+        Note right of ETL: Initialisiere leeren Buffer: chunks = []
+        
+        loop Schleife: Für jede Datei
+            ETL->>ETL: 1. Parsing zu AST (Struktur erkennen)
+            ETL->>ETL: 2. Chunking (In Segmente unterteilen)
+            ETL->>ETL: 3. Segment zur Liste "chunks" hinzufügen
+        end
+        
+        ETL->>Ollama: POST /api/embeddings (Sende gesamte Liste)
+        Ollama-->>ETL: Erhalte Vektoren für alle Chunks [768d]
+        
+        ETL->>DB: Bulk Insert (Alles speichern)
+        note right of DB: Parent-Texte und Vektoren<br/>werden persistiert
+    end
+
+    %% ==========================================
+    %% PHASE 2: RUNTIME (RAG)
+    %% ==========================================
+    rect rgb(240, 248, 255)
+        note right of Dev: Phase 2: Laufzeit-Ausführung (RAG)
+        
+        Dev->>IDE: "Wie erstelle ich einen primären Button?"
+        
+        IDE->>LLM: Chat-Anfrage (Prompt + Tool-Definitionen)
+        LLM-->>IDE: Tool-Aufruf "search_docs" (Args: "primary button")
+
+        IDE->>MCP: JSON-RPC: tools/call
+        
+        MCP->>Ollama: Suchanfrage einbetten (Embed Query)
+        Ollama-->>MCP: Vektor zurückgeben [768d]
+        
+        note over MCP, DB: Parent-Document-Retrieval
+        
+        MCP->>DB: 1. Vektorsuche (Child Chunks)
+        note right of MCP: Findet die ähnlichsten<br/>Text-Fragmente (Ranking)
+        DB-->>MCP: Liste von UUIDs zurückgeben
+        
+        MCP->>DB: 2. Relationaler Abruf (Parent Docs)
+        note right of MCP: Fragt nach vollständigen<br/>Original-Kontext (Parent Chunks)
+        DB-->>MCP: Vollständigen Markdown-Kontext zurückgeben
+        
+        MCP-->>IDE: Tool-Ergebnis: { content: "..." }
+        
+        IDE->>LLM: Tool-Output übergeben (Original-Prompt + Kontext)
+        LLM-->>IDE: Finale Antwort in natürlicher Sprache
+        
+        IDE-->>Dev: Antwort anzeigen
+    end
