@@ -1,0 +1,84 @@
+services:
+  postgres:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: marigold-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-marigold_rag}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - marigold
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    container_name: marigold-pgweb
+    ports:
+      - '${PGWEB_PORT:-8081}:8081'
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-marigold_rag}?sslmode=disable
+    networks:
+      - marigold
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ollama:
+    build:
+      context: ./ollama
+      dockerfile: Dockerfile
+    container_name: marigold-ollama
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-nomic-embed-text}
+    networks:
+      - marigold
+    healthcheck:
+      test: ['CMD', 'ollama', 'ps']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    container_name: marigold-mcp
+    stdin_open: true
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-marigold_rag}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434/api/embed}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-nomic-embed-text}
+    networks:
+      - marigold
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+networks:
+  marigold:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ollama_data:

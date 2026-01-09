@@ -1,10 +1,12 @@
 import os, json
 import psycopg2
+from dotenv import load_dotenv
+load_dotenv()
 
 class DatabaseConnector:
     def __init__(self):
         self.conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
+            host=os.getenv("DB_HOST", "postgres"),
             port=int(os.getenv("DB_PORT", "5432")),
             database=os.getenv("DB_NAME", "marigold_rag"),
             user=os.getenv("DB_USER", "postgres"),

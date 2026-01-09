@@ -1,54 +1,63 @@
-import asyncio, requests
-from mcp.server import Server
-from mcp.types import Tool, TextContent
+import os
+import requests
+from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
 from db import DatabaseConnector
 
-server = Server("marigold-rag")
-db = DatabaseConnector()
-OLLAMA_URL = "http://localhost:11434/api/embed"
+load_dotenv()
+
+mcp = FastMCP("marigold-mcp")
+db = None
+
+def get_db():
+    global db
+    if db is None:
+        db = DatabaseConnector()
+    return db
+
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/embed")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
 
 def embed_query(query: str) -> list:
+    """Generate embedding for a query using Ollama"""
     response = requests.post(OLLAMA_URL, json={
-        "model": "nomic-embed-text",
+        "model": OLLAMA_MODEL,
         "input": query
     })
     return response.json()["embeddings"][0]
 
-@server.list_tools()
-async def list_tools() -> list[Tool]:
-    return [
-        Tool(
-            name="marigold_documentation_lookup",
-            description="Search Marigold documentation",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "number", "default": 5}
-                },
-                "required": ["query"]
-            }
-        )
-    ]
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    if name == "marigold_documentation_lookup":
-        query = arguments["query"]
-        limit = arguments.get("limit", 5)
-        
-        embedding = embed_query(query)
-        results = db.search_similar(embedding, limit)
-        
-        text = "\n\n".join([f"**{r['component']}** - {r['section_title']}\n{r['content']}" for r in results])
-        return [TextContent(type="text", text=text)]
+@mcp.tool()
+async def documentation_lookup(query: str, limit: int = 5) -> str:
+    """Search the official Marigold UI design system documentation using semantic similarity.
     
-    return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
-async def main():
-    from mcp.server.stdio import stdio_server
-    async with stdio_server() as streams:
-        await server.run(streams[0], streams[1], server.create_initialization_options())
+    Use this tool when users ask questions about:
+    - Component usage and API documentation (Button, Dialog, Select, etc.)
+    - Design patterns and best practices
+    - Props, types, and component variations
+    - Styling and theming in Marigold
+    - How to implement specific UI patterns
+    
+    This tool searches against official documentation with semantic vector similarity.
+    Results include component descriptions, usage examples, and implementation details.
+    
+    Args:
+        query: The user's question about Marigold components or patterns (e.g., "How do I create a Button with custom styling?")
+        limit: Number of most relevant documentation chunks to return (1-20, default: 5)
+    
+    Returns:
+        Formatted documentation chunks with component name, section title, similarity score, and content
+    """
+    embedding = embed_query(query)
+    results = get_db().search_similar(embedding, limit)
+    
+    if not results:
+        return "No documentation found for your query."
+    
+    formatted = []
+    for r in results:
+        formatted.append(f"**{r['component']}** - {r['section_title']} (Similarity: {r['similarity']:.1%})\n{r['content']}")
+    
+    return "\n\n---\n\n".join(formatted)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    mcp.run(transport="stdio")

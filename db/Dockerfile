@@ -8,8 +8,6 @@ RUN apt-get update && apt-get install -y \
     postgresql-contrib-16 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment
-
 EXPOSE 5432
 
 # Health check
