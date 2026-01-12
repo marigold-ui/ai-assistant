@@ -1,5 +1,5 @@
 services:
-  postgres:
+  marigold-postgres:
     build:
       context: ./db
       dockerfile: Dockerfile
@@ -20,20 +20,20 @@ services:
       timeout: 5s
       retries: 5
 
-  pgweb:
+  marigold-pgweb:
     image: sosedoff/pgweb:latest
     container_name: marigold-pgweb
     ports:
       - '${PGWEB_PORT:-8081}:8081'
     environment:
-      DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-marigold_rag}?sslmode=disable
+      PGWEB_DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@marigold-postgres:5432/${DB_NAME:-marigold_rag}?sslmode=disable
     networks:
       - marigold
     depends_on:
-      postgres:
+      marigold-postgres:
         condition: service_healthy
 
-  ollama:
+  marigold-ollama:
     build:
       context: ./ollama
       dockerfile: Dockerfile
@@ -53,11 +53,12 @@ services:
       timeout: 5s
       retries: 5
 
-  mcp-server:
+  marigold-mcp:
     build:
       context: ./mcp-server
       dockerfile: Dockerfile
     container_name: marigold-mcp
+    command: tail -f /dev/null
     stdin_open: true
     environment:
       DB_HOST: ${DB_HOST:-postgres}
@@ -65,14 +66,14 @@ services:
       DB_NAME: ${DB_NAME:-marigold_rag}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434/api/embed}
+      OLLAMA_URL: ${OLLAMA_URL:-http://marigold-ollama:11434/api/embed}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-nomic-embed-text}
     networks:
       - marigold
     depends_on:
-      postgres:
+      marigold-postgres:
         condition: service_healthy
-      ollama:
+      marigold-ollama:
         condition: service_healthy
 
 networks:
