@@ -18,12 +18,7 @@ const config: FetcherConfig = {
 };
 
 try {
-  // DEBUG: Log fetch start
-  console.log('Fetching documentation...');
   fetchDocumentation(config);
-
-  // DEBUG: Log success
-  console.log('Documentation fetched successfully');
 } catch (error) {
   console.error('Failed to fetch documentation:', error);
   process.exit(1);
