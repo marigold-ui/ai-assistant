@@ -13,6 +13,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY server.py db.py ./
+COPY mcp-server/server.py mcp-server/db.py ./
 
 CMD ["python3", "server.py"]

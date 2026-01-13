@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class DatabaseConnector:
-    def __init__(self):
+    def __init__(self, table_name: str = "chunks"):
+        self.table_name = table_name
         self.conn = psycopg2.connect(
             host=os.getenv("DB_HOST", "postgres"),
             port=int(os.getenv("DB_PORT", "5432")),
@@ -26,22 +27,22 @@ class DatabaseConnector:
         """
         # 1. Vector search to find most similar chunks
         if component_filter:
-            query = """
+            query = f"""
                 SELECT 
                     id, component, section_path, content, parent_id, demo_code,
                     1 - (embedding <=> %s::vector) as similarity
-                FROM chunks
+                FROM {self.table_name}
                 WHERE component = %s
                 ORDER BY similarity DESC
                 LIMIT %s
             """
             self.cur.execute(query, (json.dumps(embedding), component_filter, limit))
         else:
-            query = """
+            query = f"""
                 SELECT 
                     id, component, section_path, content, parent_id, demo_code,
                     1 - (embedding <=> %s::vector) as similarity
-                FROM chunks
+                FROM {self.table_name}
                 ORDER BY similarity DESC
                 LIMIT %s
             """
@@ -54,9 +55,9 @@ class DatabaseConnector:
             # 2. If chunk has a parent, fetch parent context
             parent_context = None
             if parent_id is not None:
-                self.cur.execute("""
+                self.cur.execute(f"""
                     SELECT section_path, content 
-                    FROM chunks WHERE id = %s
+                    FROM {self.table_name} WHERE id = %s
                 """, (parent_id,))
                 parent_row = self.cur.fetchone()
                 if parent_row:
@@ -91,7 +92,7 @@ class DatabaseConnector:
 
     def get_components(self) -> list[str]:
         """Get all unique component names from the database"""
-        self.cur.execute("SELECT DISTINCT component FROM chunks ORDER BY component")
+        self.cur.execute(f"SELECT DISTINCT component FROM {self.table_name} ORDER BY component")
         return [row[0] for row in self.cur.fetchall()]
 
     def close(self):
