@@ -35,15 +35,15 @@ services:
 
   marigold-ollama:
     build:
-      context: ./ollama
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ollama/Dockerfile
     container_name: marigold-ollama
     ports:
       - '11434:11434'
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-nomic-embed-text}
     networks:
       - marigold
@@ -55,8 +55,8 @@ services:
 
   marigold-mcp:
     build:
-      context: ./mcp-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp-server/Dockerfile
     container_name: marigold-mcp
     command: tail -f /dev/null
     stdin_open: true
